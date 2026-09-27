@@ -1,0 +1,4 @@
+name,smiles
+tyrosine,N[C@@H](Cc1ccc(O)cc1)C(=O)O
+phenylalanine,N[C@@H](Cc1ccccc1)C(=O)O
+tryptophan,N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O

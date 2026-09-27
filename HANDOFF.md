@@ -5,10 +5,12 @@ iMac. Nothing was run on a Studio yet. Keep §9 (status log) current._
 
 ## 0. Starting the next session
 
-1. Merge this PR, then clone the repo on the Studio chosen as the development machine:
+1. Merge PR #1, then clone the repo on the Studio chosen as the development machine:
    `gh repo clone mbs1234/boltz-community`
 2. Open that folder in Claude Code. `CLAUDE.md` loads automatically.
 3. A good first prompt: _"Read HANDOFF.md and start Phase 0 on this Studio."_
+   Phase 0 begins by verifying the tools written on the iMac (§6.4). None of them
+   has touched Apple Silicon or real Boltz output yet.
 
 ## 1. Goal and context
 
@@ -125,10 +127,13 @@ iMac. Nothing was run on a Studio yet. Keep §9 (status log) current._
 Each phase ends with a go/no-go check with the user.
 
 ### Phase 0: Set up the development Studio
-- [ ] Write `scripts/mac/setup_mac_studio.sh` (spec §6.1) and run it.
-- [ ] Record the environment in `$BOLTZ_HOME/setup-info.txt`: macOS version, chip, GPU cores, torch version, boltz
-      commit.
-- [ ] Run `pytest tests/test_mps.py -m mps -v` and the CPU suite.
+- [x] Write `scripts/mac/setup_mac_studio.sh` (§6.1). Written and checked on the iMac with `bash -n`, shellcheck and
+      `--dry-run`. **Never run for real on Apple Silicon.**
+- [ ] Run it on the development Studio. It writes `~/boltz/setup-info.txt` (macOS version, chip, GPU cores, torch
+      version, boltz commit). The smoke test must write both a structure and an affinity file.
+- [ ] Run the CPU suite, the new tool tests (`pytest tests/test_compare_runs.py tests/test_studio_queue.py`), and
+      `pytest tests/test_mps.py -m mps -v`.
+- [ ] Work through the verification checklist in §6.4.
 - [ ] Keep one Studio as the development machine, so benchmarks aren't disturbed by production runs.
 
 ### Phase 1: Baseline and trust
@@ -142,7 +147,8 @@ Each phase ends with a go/no-go check with the user.
       boltz-community commit as the Mac, with several seeds each. This costs only a small amount of quota.
 - [ ] Add ground truth where available (crystal poses, assay data). Agreement with the A100 shows consistency, not
       correctness.
-- [ ] Build `boltz-compare` (spec §6.3) and run it against the reference set.
+- [x] Build `boltz-compare` (§6.3). Tested on synthetic structures only.
+- [ ] Run `boltz-compare` against the reference set.
 - [ ] Measure wall time per job and its breakdown: model load, featurization, trunk, diffusion, confidence, affinity.
       Profile with `torch.profiler` and Instruments (Metal System Trace) to find the top operations.
 - [ ] Measure throughput with 1, 2 and 3 concurrent jobs per Studio.
@@ -151,9 +157,12 @@ Each phase ends with a go/no-go check with the user.
 - **Gate:** can Mac results replace A100 runs for routine work, and at what tolerance?
 
 ### Phase 2: Run the three Studios as one small cluster
-- [ ] Build `boltz-queue` (spec §6.2), including the YAML inbox and the CSV helper.
+- [x] Build `boltz-queue` (§6.2), including the YAML inbox and the CSV helper. Tested with a fake `boltz` command on
+      a local folder.
 - [ ] Settle the sharing method with the user: NAS, File Sharing on one Studio, or an SSH hub.
-- [ ] Provide a LaunchAgent so workers restart after a reboot. The user installs it.
+- [x] Write the LaunchAgent generator (`boltz-queue launchd-plist`), so workers restart after a reboot. The user
+      installs the agent. Not yet tried on a Studio.
+- [ ] Try the queue with real Boltz across two or more Studios on the chosen shared folder.
 - **Gate:** does it run unattended for a week?
 
 ### Phase 3: Routing
@@ -188,7 +197,19 @@ Each change must show a measured gain on real jobs and pass validation within to
   - Choose this only if profiling shows that general PyTorch-on-MPS overhead dominates.
   - Costs: a second implementation to maintain, every upstream fix mirrored by hand, and every feature re-validated.
 
-## 6. Tool specs
+## 6. Tools
+
+All three tools were implemented on 2026-09-27. §6.1–6.3 are the specs they were built from; §6.4 records where the
+implementation differs and what still needs checking on a Studio. The user guide is
+[`docs/mac_studio.md`](docs/mac_studio.md).
+
+| Piece | Files |
+|---|---|
+| Setup script | `scripts/mac/setup_mac_studio.sh` |
+| Job queue | `src/boltz/scripts/studio_queue.py` (entry point `boltz-queue`), `tests/test_studio_queue.py` |
+| Comparison tool | `src/boltz/scripts/compare_runs.py` (entry point `boltz-compare`), `tests/test_compare_runs.py` |
+| Shared output reader | `src/boltz/scripts/prediction_outputs.py` |
+| Example inputs | `examples/mac_studio/target.yaml`, `examples/mac_studio/ligands.csv` (public molecules only) |
 
 ### 6.1 Setup script: `scripts/mac/setup_mac_studio.sh`
 - **Preflight:** check for macOS on arm64; warn below macOS 14.
@@ -299,6 +320,55 @@ path rewriting and duplicate names. No torch needed.
 **Dependencies and tests:** uses gemmi, numpy and scipy, which are already Boltz dependencies. Test with synthetic
 structures: a rotated copy must give RMSD 0, and a known ligand shift must give the expected RMSD.
 
+### 6.4 As built, and what still needs verifying
+
+**Where the implementation differs from the specs**
+- **Setup script:** it also requires Apple's Command Line Tools (needed for `git` and for the OpenMP fix's `otool`,
+  `install_name_tool` and `codesign`). It stops with the install command if they're missing. A failed OpenMP fix is
+  a warning, not an error.
+- **Worker options:** Boltz options must come after `--`. A mistyped worker option is then an error instead of being
+  passed silently to Boltz.
+- **Retries:** the worker adds `--override` when an earlier attempt left partial output.
+- **Missing affinity:** a job that asked for affinity but got none counts as failed.
+- **Crash safety:** an unexpected error while starting a job or reading its output fails that job only. The worker
+  keeps running, which avoids a restart loop under launchd.
+- **`requeue --from-host HOST`:** returns jobs stuck on a Mac that died.
+- **`make-inputs` checks:** it refuses a template that already uses the ligand chain ID or already has an affinity
+  property. It validates SMILES with RDKit when RDKit is installed (it is, as a Boltz dependency).
+- **Provenance:** `summary.json` records the installed boltz commit when Boltz was installed from git.
+
+**Tested on the iMac (Python 3.14, no torch)**
+- 39 tests pass: 13 for `boltz-compare` and 26 for `boltz-queue`.
+- Ruff is clean, apart from the rules the existing code also doesn't follow: annotations in tests, deliberately lazy
+  imports, the copyright header, and magic numbers in tests.
+- The wheel builds, and it contains the new modules and entry points.
+- Setup script checks: `bash -n`, shellcheck, and `--dry-run`.
+- Generated YAML round-trips awkward SMILES (`#`, `[`, `%`, `:`, and values YAML would read as booleans or numbers).
+
+**Checklist for the first Studio session**
+1. **Setup script, for real, on a fresh Studio.** Check the Command Line Tools check, how uv gets installed,
+   PyTorch MPS, the OpenMP fix output, and the smoke test and how long it takes.
+2. **`boltz-queue` with real Boltz on one Studio:**
+   - `boltz-queue init ~/q`
+   - `boltz-queue make-inputs examples/mac_studio/target.yaml examples/mac_studio/ligands.csv --queue ~/q --seeds 1,2`
+   - `boltz-queue worker ~/q --once`
+   - then `status` and `summarize`
+
+   Check that `results/*/summary.json` matches Boltz's own confidence and affinity JSON files.
+3. **`boltz-compare` on real Boltz output.** The tests used gemmi-written mmCIF, while Boltz writes mmCIF through
+   ihm/modelcif. Compare the seed 1 and seed 2 runs from step 2: copy one side's results elsewhere and use `--ref` /
+   `--test`. Check that:
+   - chains line up;
+   - ligand chains are found (residue names `LIG1`, `LIG2`, … or CCD codes);
+   - ligand RMSDs aren't `n/a`.
+
+   If gemmi reads Boltz's chain IDs differently than expected, fix `read_structure` in `prediction_outputs.py`.
+4. **Two or more Studios on the chosen shared folder.** Run many small jobs and confirm that:
+   - no job runs twice (`results/*/job.json` shows one host per job);
+   - path rewriting works when the Macs mount the folder at different places.
+5. **LaunchAgent.** Install it on one Studio and reboot. Confirm the worker restarts and waits for the share to mount.
+6. **Record timings** from `summary.json` for Phase 1.
+
 ## 7. Validation protocol
 
 - **Kernel level:** compare each new kernel against the PyTorch operation it replaces, using real activations dumped
@@ -330,4 +400,7 @@ structures: a rotated copy must give RMSD 0, and a known ligand shift must give 
     tests, history and issues. Nothing was run.
   - Forked the parent as `mbs1234/boltz-community` at `401f181` (v2.10.12).
   - Added `CLAUDE.md` and `HANDOFF.md`, and fixed `.gitignore`.
-  - **Next:** Phase 0 on the development Studio.
+  - Built the setup script, `boltz-queue` (with `make-inputs` and `launchd-plist`), `boltz-compare`, their tests,
+    `docs/mac_studio.md` and `examples/mac_studio/`, all on the iMac and all in PR #1. See §6.4 for what was tested
+    and what wasn't.
+  - **Next:** Phase 0 on the development Studio, starting with the §6.4 checklist.

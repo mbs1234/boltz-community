@@ -33,12 +33,23 @@ add a line to the status log.
   you're on, run `sysctl -n machdep.cpu.brand_string` and `system_profiler SPDisplaysDataType | grep Cores`.
 - The user's desk machine is an Intel iMac. It can't run Boltz on the GPU, because PyTorch stopped shipping Intel-Mac
   builds after 2.2. Don't use it for benchmarks or MPS tests.
-- Use a Python 3.12 virtual environment and install with `pip install -e ".[test]"`, or use
-  `scripts/mac/setup_mac_studio.sh` once it exists (HANDOFF.md §6.1).
+- To set up a Studio, run `scripts/mac/setup_mac_studio.sh`. For development, use
+  `BOLTZ_SRC=$PWD bash scripts/mac/setup_mac_studio.sh` to get an editable install.
+  Otherwise, use a Python 3.12 venv and `pip install -e ".[test]"`.
+
+## Tools added by this fork (see `docs/mac_studio.md`)
+
+- `boltz-queue` (`src/boltz/scripts/studio_queue.py`): a shared-folder job queue for several Macs, with
+  `make-inputs` to turn a target and a ligand CSV into jobs.
+- `boltz-compare` (`src/boltz/scripts/compare_runs.py`): compares Mac predictions against A100 references.
+- `src/boltz/scripts/prediction_outputs.py`: finds and reads Boltz output folders; both tools use it.
+- These were written on the Intel iMac and have **not yet run on a Studio or on real Boltz output**. The checklist in
+  HANDOFF.md §6.4 comes first.
 
 ## Tests
 
 - CPU suite, the same as upstream CI: `pytest -m "not slow and not regression" -v --tb=short`
+- This fork's tools (fast, no torch or GPU needed): `pytest tests/test_compare_runs.py tests/test_studio_queue.py -q`
 - Mac GPU tests, run manually on a Studio: `pytest tests/test_mps.py -m mps -v`
 - The markers `slow`, `regression`, and `mps` are defined in `pyproject.toml`. New tools should get CPU-runnable
   tests that don't need torch or a GPU (for example, a fake `boltz` command).

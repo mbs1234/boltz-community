@@ -1,5 +1,9 @@
 # boltz-community
 
+> **This fork (mbs1234/boltz-community)** adds tools for running Boltz on Apple Silicon Mac Studios: a setup script,
+> a job queue shared by several Macs, and a tool that compares Mac results with results from NVIDIA GPUs. See
+> [docs/mac_studio.md](docs/mac_studio.md) for how to use them and [HANDOFF.md](HANDOFF.md) for the project plan.
+
 Community-maintained fork of [Boltz](https://github.com/jwohlwend/boltz) with bug fixes, broader compatibility, and CI.
 
 ## What's different from upstream?

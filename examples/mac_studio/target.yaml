@@ -1,0 +1,16 @@
+# Target template for `boltz-queue make-inputs` (see docs/mac_studio.md).
+#
+# Put everything about the target here: the protein, its MSA, any cofactors or
+# constraints. Leave out the ligand being screened; make-inputs adds one per CSV
+# row (as chain L, with an affinity request unless you pass --no-affinity).
+#
+# For real work, point msa at a precomputed MSA file, written relative to this
+# file, for example one Boltz saved in boltz_results_<name>/msa/ on an earlier run:
+#   msa: ./target_msa.csv
+# "empty" runs without an MSA: fast, but less accurate.
+version: 1
+sequences:
+  - protein:
+      id: A
+      sequence: MVTPEGNVSLVDESLLVGVTDEDRAVRSAHQFYERLIGLWAPAVMEAAHELGVFAALAEAPADSGELARRLDCDARAMRVLLDALYAYDVIDRIHDTNGFRYLLSAEARECLLPGTLFSLVGKFMHDINVAWPAWRNLAEVVRHGARDTSGAESPNGIAQEDYESLVGGINFWAPPIVTTLSRKLRASGRSGDATASVLDVGCGTGLYSQLLLREFPRWTATGLDVERIATLANAQALRLGVEERFATRAGDFWRGGWGTGYDLVLFANIFHLQTPASAVRLMRHAAACLAPDGLVAVVDQIVDADREPKTPQDRFALLFAASMTNTGGGDAYTFQEYEEWFTAAGLQRIETLDTPMHRILLARRATEPSAVPEGQASENLYFQ
+      msa: empty
