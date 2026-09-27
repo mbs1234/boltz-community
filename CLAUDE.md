@@ -12,6 +12,16 @@ measured in trustworthy results per week across the three Studios, not in the sp
 the validation protocol, open questions, and a status log. When you finish a piece of work, update its checkboxes and
 add a line to the status log.
 
+## Working with the user
+
+- The user is a scientist who uses Boltz-2 for research. They aren't a GPU engineer, so explain infrastructure and
+  performance details in plain terms.
+- Scientific calls are theirs: which systems make up the reference set, which accuracy tolerances are acceptable,
+  and whether a speed/accuracy trade-off is worth it. Bring them measurements and a recommendation.
+- Anything outward-facing needs the user's go-ahead first. That includes PRs or issues on other repositories,
+  publishing results, and changing repository settings.
+- The user's GitHub account is `mbs1234`. They review pull requests in this fork before anything merges to `main`.
+
 ## Rules
 
 - **This repo is public. Never commit research data.** That covers real input YAMLs, MSAs, ligand lists and SMILES,
