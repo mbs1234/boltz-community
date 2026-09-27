@@ -166,6 +166,10 @@ cython_debug/
 
 # Boltz prediction outputs
 #   All result files generated from a boltz prediction call
-boltz_results_*/.idea/
+boltz_results_*/
 .idea/
 .claude/
+
+# Local research data (inputs, MSAs, ligand lists, results). This fork is public:
+# keep real data outside the repo or in local/, never in a commit.
+/local/

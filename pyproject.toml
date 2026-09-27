@@ -73,6 +73,8 @@ Upstream = "https://github.com/jwohlwend/boltz"
 [project.scripts]
 boltz = "boltz.main:cli"
 boltz-fix-macos-libomp = "boltz.scripts.fix_macos_libomp:main"
+boltz-compare = "boltz.scripts.compare_runs:main"
+boltz-queue = "boltz.scripts.studio_queue:cli"
 
 [project.optional-dependencies]
 lint = ["ruff"]
