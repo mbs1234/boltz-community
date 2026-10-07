@@ -1019,9 +1019,15 @@ def cli() -> None:
     default=8192,
 )
 @click.option(
-    "--subsample_msa",
-    is_flag=True,
-    help="Whether to subsample the MSA. Default is True.",
+    "--subsample_msa/--no_subsample_msa",
+    default=False,
+    help=(
+        "Whether to subsample the MSA to --num_subsampled_msa rows. Default: off "
+        "(full MSA). Upstream declared this as a bare flag whose help text claimed "
+        "'Default is True' while it was actually off and could not be switched off "
+        "explicitly (upstream #628); this keeps the effective default and makes "
+        "both directions available."
+    ),
 )
 @click.option(
     "--num_subsampled_msa",
@@ -1252,6 +1258,21 @@ def predict(  # noqa: C901, PLR0915, PLR0912
         write_embeddings=write_embeddings,
     )
 
+    # Pick precision. Lightning builds bf16 autocast for device "cuda" whenever the
+    # accelerator is not "cpu", so on Apple MPS "bf16-mixed" was logged but never applied:
+    # everything already ran in fp32. Say so explicitly instead of claiming bf16.
+    on_mps = (
+        accelerator == "gpu"
+        and not torch.cuda.is_available()
+        and torch.backends.mps.is_available()
+    )
+    if model == "boltz1" or on_mps:
+        precision = 32
+        if on_mps:
+            click.echo("Running on Apple MPS: using float32 precision.")
+    else:
+        precision = "bf16-mixed"
+
     # Set up trainer
     trainer = Trainer(
         default_root_dir=out_dir,
@@ -1259,7 +1280,7 @@ def predict(  # noqa: C901, PLR0915, PLR0912
         callbacks=[pred_writer],
         accelerator=accelerator,
         devices=devices,
-        precision=32 if model == "boltz1" else "bf16-mixed",
+        precision=precision,
     )
 
     if filtered_manifest.records:
