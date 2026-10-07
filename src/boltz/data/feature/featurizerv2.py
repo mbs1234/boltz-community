@@ -1491,8 +1491,10 @@ def process_atom_features(
     if isinstance(override_coords, Tensor):
         coords = override_coords.unsqueeze(0)
 
-    # Apply random roto-translation to the input conformers
-    for i in range(torch.max(ref_space_uid)):
+    # Apply random roto-translation to the input conformers.
+    # ref_space_uid runs 0..max inclusive; upstream iterated range(max) and so never augmented
+    # the last group (in a protein + ligand input: always the ligand).
+    for i in range(int(torch.max(ref_space_uid)) + 1):
         included = ref_space_uid == i
         if torch.sum(included) > 0 and torch.any(resolved_mask[included]):
             ref_pos[included] = center_random_augmentation(
